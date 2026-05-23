@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Dashboard Construcción — La Pampina</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ── TOPBAR ──────────────────────────────────────────────────── -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="eyebrow">PowerChina · La Pampina</span>
+      <h1>Control de Avance — Construcción</h1>
+    </div>
+    <div class="topbar-right">
+      <span id="metaDate" class="meta-badge"></span>
+      <label class="upload-btn">
+        <input id="fileInput" type="file" accept=".xlsx,.xlsm,.xls">
+        ↑ Actualizar Anexo 01
+      </label>
+      <button id="themeToggle" class="theme-toggle" title="Alternar tema">🌙</button>
+    </div>
+  </header>
+
+  <!-- ── TOAST ──────────────────────────────────────────────────── -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- ── KPI STRIP ──────────────────────────────────────────────── -->
+  <section class="kpi-strip">
+    <div class="kpi" id="kpi-plan">
+      <div class="kpi-val" id="kPlan">—</div>
+      <div class="kpi-lbl">% Planeado</div>
+    </div>
+    <div class="kpi" id="kpi-real">
+      <div class="kpi-val" id="kReal">—</div>
+      <div class="kpi-lbl">% Real</div>
+    </div>
+    <div class="kpi kpi-alert" id="kpi-dev">
+      <div class="kpi-val" id="kDev">—</div>
+      <div class="kpi-lbl">Desvío Acum.</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val" id="kHH">—</div>
+      <div class="kpi-lbl">H-H Totales</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val" id="kAct">—</div>
+      <div class="kpi-lbl">Actividades</div>
+    </div>
+    <div class="kpi kpi-warn">
+      <div class="kpi-val" id="kSin">—</div>
+      <div class="kpi-lbl">Sin Avance</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val" id="kForecast">—</div>
+      <div class="kpi-lbl">Forecast fin</div>
+    </div>
+  </section>
+
+  <!-- ── TABS ────────────────────────────────────────────────────── -->
+  <nav class="tabs">
+    <button class="tab active" data-tab="resumen">Resumen</button>
+    <button class="tab" data-tab="scurve">Curva S</button>
+    <button class="tab" data-tab="areas">Por Área</button>
+    <button class="tab" data-tab="desvios">Top Desvíos</button>
+    <button class="tab" data-tab="criticas">Críticas</button>
+    <button class="tab" data-tab="sinAvance">Sin Avance</button>
+    <button class="tab" data-tab="ranking">Ranking</button>
+    <button class="tab" data-tab="cenarios">Escenarios</button>
+    <button class="tab" data-tab="tabla">Tabla</button>
+  </nav>
+
+  <main class="content">
+
+    <!-- ── RESUMEN ─────────────────────────────────────────────── -->
+    <section id="tab-resumen" class="tab-pane active">
+
+      <!-- Welcome card (oculto após carregar arquivo) -->
+      <div id="welcomeCard" class="welcome-card">
+        <div class="welcome-inner">
+          <div class="welcome-eyebrow">PowerChina · La Pampina</div>
+          <h2>Dashboard de Construcción</h2>
+          <p>Cargue el archivo <strong>Anexo 01-LPA.xlsm</strong> para iniciar el dashboard.</p>
+          <p style="color:#888;font-size:13px">Use o botão <strong>↑ Actualizar Anexo 01</strong> no topo da página.</p>
+        </div>
+      </div>
+
+      <div id="resumenContent" style="display:none">
+      <div class="two-col">
+        <div>
+          <h2>Resumen Ejecutivo</h2>
+          <div id="resumenText" class="executive-text"></div>
+        </div>
+        <div>
+          <h2>Avance por Área</h2>
+          <div style="position:relative;height:260px">
+            <canvas id="areaChart"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="three-col" style="margin-top:24px">
+        <div class="chart-card">
+          <h2>Estado de Actividades</h2>
+          <div style="position:relative;height:220px">
+            <canvas id="statusDonut"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h2>Progreso Semanal (últ. 10 sem.)</h2>
+          <div style="position:relative;height:220px">
+            <canvas id="weeklyBar"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h2>Top 5 Desvíos Críticos</h2>
+          <div id="top5List" class="top5-list"></div>
+        </div>
+      </div>
+      </div> <!-- /resumenContent -->
+    </section>
+
+    <!-- ── CURVA S ─────────────────────────────────────────────── -->
+    <section id="tab-scurve" class="tab-pane">
+      <div class="tab-header">
+        <h2>Curva S — Construcción La Pampina</h2>
+        <div class="filters">
+          <select id="scurvePeriod">
+            <option value="all">Todo el período</option>
+            <option value="around" selected>±12 semanas desde hoy</option>
+            <option value="past20">Últimas 20 semanas</option>
+            <option value="next30">Próximas 30 semanas</option>
+          </select>
+        </div>
+      </div>
+      <div style="position:relative;height:340px">
+        <canvas id="scurveChart"></canvas>
+      </div>
+    </section>
+
+    <!-- ── POR ÁREA ────────────────────────────────────────────── -->
+    <section id="tab-areas" class="tab-pane">
+      <div class="tab-header">
+        <h2>Progreso por Área / Grupo</h2>
+        <div class="filters">
+          <select id="areaLvlBox">
+            <option value="3">Nivel 3 — Grupos principales</option>
+            <option value="4">Nivel 4 — Subgrupos</option>
+          </select>
+        </div>
+      </div>
+      <div style="position:relative;height:300px;margin-bottom:20px">
+        <canvas id="areasBarChart"></canvas>
+      </div>
+      <div id="areasTable"></div>
+    </section>
+
+    <!-- ── TOP DESVÍOS ─────────────────────────────────────────── -->
+    <section id="tab-desvios" class="tab-pane">
+      <div class="tab-header">
+        <h2>Top 50 — Actividades con Mayor Desvío</h2>
+        <div class="filters">
+          <input id="desvSearch" type="search" placeholder="Buscar EDT o actividad…">
+          <select id="desvAreaBox"><option value="">— Todas las áreas —</option></select>
+        </div>
+      </div>
+      <div style="position:relative;height:320px;margin-bottom:20px">
+        <canvas id="desviosBarChart"></canvas>
+      </div>
+      <div id="desviosTable"></div>
+    </section>
+
+    <!-- ── CRÍTICAS ────────────────────────────────────────────── -->
+    <section id="tab-criticas" class="tab-pane">
+      <div class="tab-header">
+        <h2>Actividades Críticas (Alta incidencia + Desvío negativo)</h2>
+        <div class="filters">
+          <input id="critSearch" type="search" placeholder="Buscar EDT o actividad…">
+          <select id="critAreaBox"><option value="">— Todas las áreas —</option></select>
+        </div>
+      </div>
+      <div style="position:relative;height:280px;margin-bottom:20px">
+        <canvas id="criticasBarChart"></canvas>
+      </div>
+      <div id="criticasTable"></div>
+    </section>
+
+    <!-- ── SIN AVANCE ──────────────────────────────────────────── -->
+    <section id="tab-sinAvance" class="tab-pane">
+      <div class="tab-header">
+        <h2>Actividades Planeadas sin Avance Real</h2>
+        <div class="filters">
+          <input id="sinSearch" type="search" placeholder="Buscar EDT o actividad…">
+          <select id="sinAreaBox"><option value="">— Todas las áreas —</option></select>
+        </div>
+      </div>
+      <p class="subtitle">Actividades con % Plan &gt; 0 y % Real = 0</p>
+      <div class="two-col" style="margin-bottom:20px">
+        <div class="chart-card">
+          <h2>Distribución por Área (cant.)</h2>
+          <div style="position:relative;height:240px">
+            <canvas id="sinAvanceDonut"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h2>H-H sin avance por Área</h2>
+          <div style="position:relative;height:240px">
+            <canvas id="sinAvanceHHBar"></canvas>
+          </div>
+        </div>
+      </div>
+      <div id="sinAvanceTable"></div>
+    </section>
+
+    <!-- ── RANKING ─────────────────────────────────────────────── -->
+    <section id="tab-ranking" class="tab-pane">
+      <div class="tab-header">
+        <h2>Ranking de Impactos</h2>
+        <div class="filters">
+          <input id="rankSearch" type="search" placeholder="Buscar EDT o actividad…">
+          <select id="rankAreaBox"><option value="">— Todas las áreas —</option></select>
+          <select id="rankClasif">
+            <option value="">— Todas las clasif. —</option>
+            <option value="CRITICO">CRÍTICO</option>
+            <option value="ALTO">ALTO</option>
+            <option value="MEDIO">MEDIO</option>
+            <option value="BAJO">BAJO</option>
+          </select>
+        </div>
+      </div>
+      <p class="subtitle">Ordenado por impacto ponderado absoluto en el progreso total</p>
+      <div style="position:relative;height:320px;margin-bottom:20px">
+        <canvas id="rankingBarChart"></canvas>
+      </div>
+      <div id="rankingTable"></div>
+    </section>
+
+    <!-- ── ESCENARIOS ──────────────────────────────────────────── -->
+    <section id="tab-cenarios" class="tab-pane">
+      <h2>Análisis de Escenarios</h2>
+      <div class="scenarios-grid">
+        <div class="scenario-card">
+          <h3>Escenario A — Completar una actividad</h3>
+          <p>Ingrese el EDT y la nueva % real:</p>
+          <div class="sc-row">
+            <label>EDT:</label>
+            <input id="scEdtA" type="text" placeholder="ej: 4.5.2.3">
+            <label>% Real nuevo:</label>
+            <input id="scRealA" type="number" min="0" max="100" value="100">%
+            <button id="scCalcA">Calcular</button>
+          </div>
+          <div id="scResultA" class="sc-result hidden"></div>
+        </div>
+        <div class="scenario-card">
+          <h3>Escenario B — ¿Cuántas actividades para recuperar X%?</h3>
+          <div class="sc-row">
+            <label>Desvío a recuperar (%):</label>
+            <input id="scDevB" type="number" step="0.1" value="2.0">%
+            <button id="scCalcB">Calcular</button>
+          </div>
+          <div id="scResultB" class="sc-result hidden"></div>
+        </div>
+        <div class="scenario-card wide">
+          <h3>Escenario C — Actividades futuras que más ayudan a recuperar el atraso</h3>
+          <div id="futureTable"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TABLA ────────────────────────────────────────────────── -->
+    <section id="tab-tabla" class="tab-pane">
+      <div class="tabla-header">
+        <h2>Tabla de Actividades</h2>
+        <div class="filters">
+          <input id="searchBox" type="search" placeholder="Buscar EDT o actividad…">
+          <select id="statusBox">
+            <option value="">— Todos los estados —</option>
+            <option value="late">Atrasada</option>
+            <option value="inProgress">En progreso</option>
+            <option value="completed">Completada</option>
+            <option value="notStarted">No iniciada</option>
+          </select>
+          <select id="areaBox"><option value="">— Todas las áreas —</option></select>
+          <button id="exportBtn">Exportar CSV</button>
+        </div>
+      </div>
+      <div id="tablaWrap"></div>
+    </section>
+
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
